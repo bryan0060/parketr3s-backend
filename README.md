@@ -53,6 +53,41 @@ con su propio puerto WebSocket:
 ---
 
 ## 📁 Estructura del proyecto
+
+```
+parketr3s-backend/
+├── sistema_camara/               ← Microservicio 1 (activo)
+│   ├── core/
+│   │   ├── capture.py            ← [Jean] Captura Brio + MediaPipe
+│   │   ├── filters.py            ← [Bryan] One Euro Filter / EMA
+│   │   ├── websocket_server.py   ← [Jean] Servidor WS en puerto 8080
+│   │   └── processors/
+│   │       ├── ritmo.py
+│   │       ├── esquive.py
+│   │       ├── impacto.py
+│   │       └── poses.py
+│   ├── config/
+│   │   └── settings.py           ← FPS, resolución, umbrales, puerto
+│   ├── utils/
+│   │   ├── math_helpers.py       ← [Bryan] Geometría reutilizable
+│   │   └── logger.py
+│   ├── tests/
+│   └── main.py                   ← Entrypoint: python main.py
+├── sistema_lidar/                ← Microservicio 2 (Semana 3)
+│   └── README.md
+├── shared/
+│   ├── schemas.py                ← Modelos Pydantic / contratos JSON
+│   └── constants.py              ← Enums globales
+├── docs/
+│   └── api_contract_v1.md        ← JSON exacto que consume el Frontend
+├── scripts/
+│   ├── install_windows.bat       ← Setup completo en el Mini PC
+│   └── start_all.bat             ← Arranca ambos microservicios
+├── .env.example
+├── requirements.txt              ← Dependencias del sistema cámara
+└── requirements_lidar.txt        ← Dependencias del LiDAR (instalar en Semana 3)
+```
+
 parketr3s-backend/
 ├── sistema_camara/               ← Microservicio 1 (activo)
 │   ├── core/

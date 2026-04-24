@@ -1,0 +1,38 @@
+# Entorno virtual
+venv/
+.venv/
+
+# Variables de entorno
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Pytest
+.pytest_cache/
+.coverage
+
+# Logs
+logs/
+*.log
+
+# Calibración local
+calibration_data/
+*.npy
+*.pkl
+
+# IDEs
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Builds
+dist/
+build/
+*.egg-info/

@@ -139,15 +139,7 @@ class FiltroEsqueleto:
         self._filtros = [FiltroLandmark() for _ in range(self.TOTAL_LANDMARKS)]
 
     def aplicar(self, landmarks: list) -> list:
-        """
-        Recibe la lista de landmarks crudos de MediaPipe y devuelve
-        la misma lista con las coordenadas suavizadas.
-
-        Cada landmark es un objeto con atributos x, y, z, visibility.
-        Devuelve una lista de dicts con x, y, z, confidence.
-        """
         resultado = []
-
         for i, landmark in enumerate(landmarks):
             x_filtrado, y_filtrado, z_filtrado = self._filtros[i].aplicar(
                 landmark.x,
@@ -160,5 +152,4 @@ class FiltroEsqueleto:
                 "z":          round(z_filtrado, 4),
                 "confidence": round(landmark.visibility, 4)
             })
-
         return resultado

@@ -1,7 +1,5 @@
 # sistema_camara/main.py
 # Noah Technology Solutions — Parke Tr3s
-# Descripción: Entrypoint principal. Levanta el servidor WebSocket y 
-#              ejecuta el bucle de captura de cámara en segundo plano.
 
 import asyncio
 import time
@@ -15,47 +13,56 @@ from sistema_camara.core.websocket_server import app, manager
 from sistema_camara.config.settings import WS_HOST, WS_PUERTO_CAMARA
 from sistema_camara.utils.logger import logger
 
-# Instancias
 camara = CapturaCamara()
 procesador_poses = PosesProcessor()
 
 async def bucle_camara():
-    """Bucle infinito que lee la cámara y envía los datos por WebSocket"""
+    """Bucle infinito que lee la cámara, calcula FPS y emite por WebSocket."""
     if not camara.conectar():
         logger.error("❌ No se pudo iniciar el bucle de cámara. Revisa la conexión.")
         return
 
+    tiempo_anterior = time.time()
+
     try:
         while True:
-            # asyncio.to_thread evita que OpenCV bloquee las conexiones de FastAPI
             frame = await asyncio.to_thread(camara.leer_frame)
             
             if frame:
-                # Estructura base del contrato API
+                # ── Cálculo de FPS reales ──
+                tiempo_actual = time.time()
+                diferencia_tiempo = tiempo_actual - tiempo_anterior
+                fps_calculados = 1.0 / diferencia_tiempo if diferencia_tiempo > 0 else 0.0
+                tiempo_anterior = tiempo_actual
+
                 mensaje = {
-                    "timestamp": time.time(),
+                    "timestamp": tiempo_actual,
                     "juego_activo": "poses",
                     "jugador_detectado": frame["jugador_detectado"],
-                    "fps_actual": 60.0  # TODO: Calcular los FPS reales
+                    "fps_actual": round(fps_calculados, 1)
                 }
 
-                # Si hay jugador, procesamos y adjuntamos los 13 puntos del esqueleto
                 if frame["jugador_detectado"] and frame["landmarks"]:
                     datos_poses = procesador_poses.procesar(frame["landmarks"])
                     mensaje["poses"] = datos_poses
 
-                # Transmitir a David y Tomás (si están conectados)
                 await manager.broadcast(mensaje)
             
-            # Pequeña pausa para no saturar la CPU del Mini PC
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0.005)
     finally:
         camara.desconectar()
 
-@app.on_event("startup")
-async def startup_event():
-    # Inicia la cámara justo cuando arranca el servidor web
-    asyncio.create_task(bucle_camara())
+# ── Reemplazo del evento de startup por Lifespan ──
+@asynccontextmanager
+async def lifespan_context(aplicacion: FastAPI):
+    # Código de inicialización (Startup)
+    tarea_camara = asyncio.create_task(bucle_camara())
+    yield
+    # Código de limpieza (Shutdown)
+    tarea_camara.cancel()
+
+# Se asigna el lifespan a la instancia de la app ya creada en websocket_server.py
+app.router.lifespan_context = lifespan_context
 
 if __name__ == "__main__":
     logger.info("🚀 Iniciando el sistema backend de Parke Tr3s...")

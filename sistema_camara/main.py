@@ -1,6 +1,5 @@
 # sistema_camara/main.py
 # Noah Technology Solutions — Parke Tr3s
-# Responsable: Bryan
 # Descripción: Orquestador principal del sistema de cámara.
 #              Lee el juego activo desde el manager y llama
 #              al processor correspondiente en cada frame.

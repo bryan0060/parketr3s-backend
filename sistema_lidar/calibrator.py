@@ -144,6 +144,12 @@ def main():
     finally:
         handler.disconnect()
         cv2.destroyAllWindows()
+        import serial
+        try:
+            s = serial.Serial("COM3")
+            s.close()
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     main()

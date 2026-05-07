@@ -36,7 +36,7 @@ class WebSocketServer:
             "x": x,
             "y": y,
             "timestamp": int(time.time())
-        })
+        }).decode("utf-8")
         dead = set()
         for client in self.clients:
             try:

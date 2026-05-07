@@ -1,50 +1,35 @@
 import time
-from typing import Generator, Tuple, Optional
-from rplidar import RPLidar, RPLidarException
-from config.settings import SERIAL_PORT, MIN_DISTANCE_MM, MAX_DISTANCE_MM
+import serial
+from typing import Generator, Tuple
+from pyrplidar import PyRPlidar
+
+from config.settings import SERIAL_PORT, MIN_DISTANCE_MM, MAX_DISTANCE_MM, BAUDRATE
 
 
 class LidarHandler:
     def __init__(self) -> None:
         self.port: str = SERIAL_PORT
-        self.lidar: Optional[RPLidar] = None
+        self.lidar: PyRPlidar | None = None
         self.connected: bool = False
+
+    def _reset_port(self) -> None:
+        try:
+            s = serial.Serial(self.port, BAUDRATE, timeout=1)
+            s.write(b'\xA5\x40')
+            time.sleep(2)
+            s.reset_input_buffer()
+            s.close()
+            time.sleep(1)
+        except Exception as e:
+            print(f"[LIDAR] Reset puerto: {e}")
 
     def connect(self) -> None:
         try:
-            self.lidar = RPLidar(self.port, baudrate=460800)
-            time.sleep(0.5)
-            self.lidar.start_motor()
+            self._reset_port()
+            self.lidar = PyRPlidar()
+            self.lidar.connect(port=self.port, baudrate=BAUDRATE, timeout=3)
+            self.lidar.set_motor_pwm(1023)
             time.sleep(1)
-            info = self.lidar.get_info()
-            print(f"[LIDAR] Conectado en {self.port} | Info: {info}")
-            self.connected = True
-        except Exception as e:
-            if self.lidar:
-                try:
-                    self.lidar.stop()
-                    self.lidar.stop_motor()
-                    self.lidar.disconnect()
-                except Exception:
-                    pass
-            self.connected = False
-            self.lidar = None
-            print(f"[LIDAR] Error al conectar: {e}")
-        try:
-            self.lidar = RPLidar(self.port, baudrate=460800)
-            time.sleep(0.5)
-            self.lidar.start_motor()
-            time.sleep(1)
-            info = self.lidar.get_info()
-            print(f"[LIDAR] Conectado en {self.port} | Info: {info}")
-            self.connected = True
-        except Exception as e:
-            self.connected = False
-            self.lidar = None
-            print(f"[LIDAR] Error al conectar: {e}")
-        try:
-            self.lidar = RPLidar(self.port, baudrate=460800)
-            time.sleep(0.5)
             info = self.lidar.get_info()
             print(f"[LIDAR] Conectado en {self.port} | Info: {info}")
             self.connected = True
@@ -57,7 +42,7 @@ class LidarHandler:
         if self.lidar:
             try:
                 self.lidar.stop()
-                self.lidar.stop_motor()
+                self.lidar.set_motor_pwm(0)
                 self.lidar.disconnect()
             except Exception:
                 pass
@@ -68,7 +53,7 @@ class LidarHandler:
     def reconnect(self) -> None:
         print("[LIDAR] Reconectando...")
         self.disconnect()
-        time.sleep(5)
+        time.sleep(3)
         self.connect()
 
     def read_loop(self) -> Generator[Tuple[float, float], None, None]:
@@ -78,13 +63,13 @@ class LidarHandler:
                 time.sleep(3)
                 continue
             try:
-                for scan in self.lidar.iter_scans():
-                    for (quality, angle, distance) in scan:
-                        if quality == 0 or distance == 0:
-                            continue
-                        if not (MIN_DISTANCE_MM <= distance <= MAX_DISTANCE_MM):
-                            continue
-                        yield angle, distance
-            except (RPLidarException, Exception) as e:
+                scan_gen = self.lidar.start_scan()
+                for scan in scan_gen():
+                    if scan.quality == 0 or scan.distance == 0:
+                        continue
+                    if not (MIN_DISTANCE_MM <= scan.distance <= MAX_DISTANCE_MM):
+                        continue
+                    yield scan.angle, scan.distance
+            except Exception as e:
                 print(f"[LIDAR] Error en lectura: {e}")
                 self.reconnect()

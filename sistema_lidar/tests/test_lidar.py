@@ -5,12 +5,6 @@ from lidar_handler import LidarHandler
 
 def main():
     handler = LidarHandler()
-    handler.connect()
-
-    if not handler.connected:
-        print("❌ No se pudo conectar al sensor")
-        return
-
     print("🟢 Leyendo datos...\n")
     try:
         for i, (angle, distance) in enumerate(handler.read_loop()):

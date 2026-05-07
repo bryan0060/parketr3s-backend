@@ -107,4 +107,19 @@ La capa específica solo existe cuando `juego_activo` coincide con ese juego.
     }
   }
 }
+
+### 🔴 Sensor RPLiDAR → Puerto 8081
+Emitido en tiempo real cuando el sensor LiDAR detecta una interrupción física en el muro.
+
+**Dirección:** Backend -> Frontend (Phaser)
+**Frecuencia:** Alta
+
+**Payload JSON:**
+```json
+{
+  "tipo_evento": "hit",
+  "x": 450,
+  "y": 800,
+  "timestamp": 1690000000
+}
 ```

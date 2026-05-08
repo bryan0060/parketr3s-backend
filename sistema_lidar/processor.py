@@ -5,6 +5,8 @@ sys.path.append("sistema_lidar")
 from math_utils import polar_to_cartesian, apply_homography
 from config.settings import SCREEN_WIDTH, SCREEN_HEIGHT, CALIBRATION_FILE
 
+MAX_TOUCHES = 4
+
 
 def cluster_points(points, max_dist=100.0):
     if not points:
@@ -24,7 +26,7 @@ def cluster_points(points, max_dist=100.0):
                 used[j] = True
         closest = min(group, key=lambda p: (p[0]**2 + p[1]**2)**0.5)
         clusters.append(closest)
-    return clusters
+    return clusters[:MAX_TOUCHES]  # Máximo 4
 
 
 class Processor:
@@ -32,7 +34,7 @@ class Processor:
         self.matrix = None
         self._load_matrix()
         self._buffer = []
-        self._buffer_size = 3
+        self._buffer_size = 10
 
     def _load_matrix(self) -> None:
         if not CALIBRATION_FILE.exists():
@@ -50,7 +52,7 @@ class Processor:
         if len(self._buffer) < self._buffer_size:
             return []
 
-        centroids = cluster_points(self._buffer, max_dist=80.0)
+        centroids = cluster_points(self._buffer, max_dist=150.0)
         self._buffer.clear()
 
         results = []

@@ -28,6 +28,22 @@ class WebSocketServer:
             self.clients.discard(ws)
             print(f"[WS] Cliente desconectado | Total: {len(self.clients)}")
 
+    async def broadcast_touches(self, touches: list) -> None:
+        if not self.clients:
+            return
+        payload = orjson.dumps({
+            "event": "hit",
+            "touches": touches,
+            "timestamp": int(time.time())
+        }).decode("utf-8")
+        dead = set()
+        for client in self.clients:
+            try:
+                await client.send(payload)
+            except Exception:
+                dead.add(client)
+        self.clients -= dead
+
     async def broadcast(self, x: int, y: int) -> None:
         if not self.clients:
             return

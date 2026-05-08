@@ -10,7 +10,7 @@ from websocket_server import WebSocketServer
 handler = LidarHandler()
 
 MAX_TOUCHES = 4
-MATCH_DIST = 150  # px para considerar mismo toque
+MATCH_DIST = 200  # px para considerar mismo toque
 
 
 def assign_ids(prev_touches: dict, new_points: list) -> dict:
@@ -58,7 +58,7 @@ async def main():
         import time
 
         # History por touch ID
-        histories = {i: deque(maxlen=6) for i in range(MAX_TOUCHES)}
+        histories = {i: deque(maxlen=4) for i in range(MAX_TOUCHES)}
         prev_touches = {}
         last_point_time = time.monotonic()
         LIFT_THRESHOLD = 0.12
@@ -96,7 +96,7 @@ async def main():
 
                 h.append((x, y))
 
-                n = min(2, len(h)) if speed > 80 else len(h)
+                n = min(2, len(h)) if speed > 50 else min(3, len(h))
                 recent = list(h)[-n:]
                 avg_x = int(sum(p[0] for p in recent) / len(recent))
                 avg_y = int(sum(p[1] for p in recent) / len(recent))

@@ -1,14 +1,15 @@
 import time
 import serial
+import threading
+from collections import deque
 from typing import Generator, Tuple
 from pyrplidar import PyRPlidar
-
 from config.settings import SERIAL_PORT, MIN_DISTANCE_MM, MAX_DISTANCE_MM, BAUDRATE
 
 
 class LidarHandler:
     def __init__(self) -> None:
-        self.port: str = SERIAL_PORT
+        self.port = SERIAL_PORT
         self.lidar: PyRPlidar | None = None
         self.connected: bool = False
 

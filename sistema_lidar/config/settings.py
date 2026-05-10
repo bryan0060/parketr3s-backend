@@ -4,7 +4,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 CALIBRATION_FILE = BASE_DIR / "calibration_matrix.npy"
 
 # LIDAR
-SERIAL_PORT = "COM9"
+SERIAL_PORT = "COM3"
 BAUDRATE = 460800
 
 # MOTOR

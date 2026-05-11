@@ -18,6 +18,7 @@ PROFILES = {
         "smooth_fast": 2,
         "smooth_slow": 3,
         "speed_threshold": 50,
+        "lift_threshold": 0.25,
     },
     "penaltis": {
         "buffer_size": 1,

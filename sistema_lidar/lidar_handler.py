@@ -1,6 +1,5 @@
 import time
 import serial
-import threading
 from typing import Generator, Tuple
 from pyrplidar import PyRPlidar
 from config.settings import SERIAL_PORT, MIN_DISTANCE_MM, MAX_DISTANCE_MM, BAUDRATE, MOTOR_RPM
@@ -34,7 +33,6 @@ class LidarHandler:
     def _set_motor_speed_rpm(self, rpm: int) -> None:
         try:
             packet = self._motor_speed_command(rpm)
-            print(f"[LIDAR] Packet enviado: {packet.hex()}")
             if self.lidar and hasattr(self.lidar, 'lidar_serial'):
                 self.lidar.lidar_serial._serial.write(packet)
             else:
@@ -49,11 +47,10 @@ class LidarHandler:
     def connect(self) -> None:
         try:
             self._reset_port()
-            self._set_motor_speed_rpm(MOTOR_RPM)  # ← antes de conectar pyrplidar
+            self._set_motor_speed_rpm(MOTOR_RPM)
             self.lidar = PyRPlidar()
             self.lidar.connect(port=self.port, baudrate=BAUDRATE, timeout=3)
-            print([a for a in dir(self.lidar.lidar_serial) if 'write' in a.lower() or 'serial' in a.lower()])
-            self._set_motor_speed_rpm(MOTOR_RPM)  # ← mover aquí
+            self._set_motor_speed_rpm(MOTOR_RPM)
             time.sleep(1)
             info = self.lidar.get_info()
             print(f"[LIDAR] Conectado en {self.port} | Info: {info}")
@@ -81,10 +78,7 @@ class LidarHandler:
         time.sleep(3)
         self.connect()
 
-    def read_loop(self):
-        import time
-        last_start = None
-        
+    def read_loop(self) -> Generator[Tuple[float, float], None, None]:
         while True:
             if not self.connected:
                 self.connect()
@@ -98,16 +92,6 @@ class LidarHandler:
                         continue
                     if not (MIN_DISTANCE_MM <= scan.distance <= MAX_DISTANCE_MM):
                         continue
-                        
-                    # Medir RPM con flag de inicio de vuelta
-                    if hasattr(scan, 'start_flag') and scan.start_flag:
-                        now = time.monotonic()
-                        if last_start is not None:
-                            delta = now - last_start
-                            rpm = (1 / delta) * 60
-                            print(f"[LIDAR] RPM actual: {rpm:.1f}")
-                        last_start = now
-                        
                     yield scan.angle, scan.distance
             except Exception as e:
                 print(f"[LIDAR] Error en lectura: {e}")

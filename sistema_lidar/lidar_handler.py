@@ -1,10 +1,9 @@
 import time
 import serial
 import threading
-from collections import deque
 from typing import Generator, Tuple
 from pyrplidar import PyRPlidar
-from config.settings import SERIAL_PORT, MIN_DISTANCE_MM, MAX_DISTANCE_MM, BAUDRATE
+from config.settings import SERIAL_PORT, MIN_DISTANCE_MM, MAX_DISTANCE_MM, BAUDRATE, MOTOR_RPM
 
 
 class LidarHandler:
@@ -24,12 +23,37 @@ class LidarHandler:
         except Exception as e:
             print(f"[LIDAR] Reset puerto: {e}")
 
+    def _motor_speed_command(self, rpm: int) -> bytes:
+        rpm_low = rpm & 0xFF
+        rpm_high = (rpm >> 8) & 0xFF
+        payload_size = 0x02
+        cmd_type = 0xA8
+        checksum = 0 ^ 0xA5 ^ cmd_type ^ payload_size ^ rpm_low ^ rpm_high
+        return bytes([0xA5, cmd_type, payload_size, rpm_low, rpm_high, checksum])
+
+    def _set_motor_speed_rpm(self, rpm: int) -> None:
+        try:
+            packet = self._motor_speed_command(rpm)
+            print(f"[LIDAR] Packet enviado: {packet.hex()}")
+            if self.lidar and hasattr(self.lidar, 'lidar_serial'):
+                self.lidar.lidar_serial._serial.write(packet)
+            else:
+                s = serial.Serial(self.port, BAUDRATE, timeout=1)
+                s.write(packet)
+                time.sleep(0.1)
+                s.close()
+            print(f"[LIDAR] Velocidad motor: {rpm} RPM")
+        except Exception as e:
+            print(f"[LIDAR] Error al setear RPM: {e}")
+
     def connect(self) -> None:
         try:
             self._reset_port()
+            self._set_motor_speed_rpm(MOTOR_RPM)  # ← antes de conectar pyrplidar
             self.lidar = PyRPlidar()
             self.lidar.connect(port=self.port, baudrate=BAUDRATE, timeout=3)
-            self.lidar.set_motor_pwm(1023)
+            print([a for a in dir(self.lidar.lidar_serial) if 'write' in a.lower() or 'serial' in a.lower()])
+            self._set_motor_speed_rpm(MOTOR_RPM)  # ← mover aquí
             time.sleep(1)
             info = self.lidar.get_info()
             print(f"[LIDAR] Conectado en {self.port} | Info: {info}")
@@ -43,7 +67,7 @@ class LidarHandler:
         if self.lidar:
             try:
                 self.lidar.stop()
-                self.lidar.set_motor_pwm(0)
+                self._set_motor_speed_rpm(0)
                 self.lidar.disconnect()
             except Exception:
                 pass
@@ -57,7 +81,10 @@ class LidarHandler:
         time.sleep(3)
         self.connect()
 
-    def read_loop(self) -> Generator[Tuple[float, float], None, None]:
+    def read_loop(self):
+        import time
+        last_start = None
+        
         while True:
             if not self.connected:
                 self.connect()
@@ -65,11 +92,22 @@ class LidarHandler:
                 continue
             try:
                 scan_gen = self.lidar.start_scan()
+                self._set_motor_speed_rpm(MOTOR_RPM)
                 for scan in scan_gen():
-                    if scan.quality == 0 or scan.distance == 0:
+                    if scan.distance == 0:
                         continue
                     if not (MIN_DISTANCE_MM <= scan.distance <= MAX_DISTANCE_MM):
                         continue
+                        
+                    # Medir RPM con flag de inicio de vuelta
+                    if hasattr(scan, 'start_flag') and scan.start_flag:
+                        now = time.monotonic()
+                        if last_start is not None:
+                            delta = now - last_start
+                            rpm = (1 / delta) * 60
+                            print(f"[LIDAR] RPM actual: {rpm:.1f}")
+                        last_start = now
+                        
                     yield scan.angle, scan.distance
             except Exception as e:
                 print(f"[LIDAR] Error en lectura: {e}")

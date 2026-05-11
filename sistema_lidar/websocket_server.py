@@ -15,13 +15,21 @@ logger = logging.getLogger(__name__)
 class WebSocketServer:
     def __init__(self) -> None:
         self.clients: set[WebSocketServerProtocol] = set()
+        self.on_mode_change = None
 
     async def _handle(self, ws: WebSocketServerProtocol) -> None:
         self.clients.add(ws)
         print(f"[WS] Cliente conectado: {ws.remote_address} | Total: {len(self.clients)}")
         try:
-            async for _ in ws:
-                pass
+            async for message in ws:
+                try:
+                    data = orjson.loads(message)
+                    if data.get("event") == "set_mode":
+                        mode = data.get("mode")
+                        if self.on_mode_change and mode in ("pizarra", "penaltis"):
+                            self.on_mode_change(mode)
+                except Exception:
+                    pass
         except websockets.exceptions.ConnectionClosedError:
             pass
         finally:
@@ -34,23 +42,6 @@ class WebSocketServer:
         payload = orjson.dumps({
             "event": "hit",
             "touches": touches,
-            "timestamp": int(time.time())
-        }).decode("utf-8")
-        dead = set()
-        for client in self.clients:
-            try:
-                await client.send(payload)
-            except Exception:
-                dead.add(client)
-        self.clients -= dead
-
-    async def broadcast(self, x: int, y: int) -> None:
-        if not self.clients:
-            return
-        payload = orjson.dumps({
-            "event": "hit",
-            "x": x,
-            "y": y,
             "timestamp": int(time.time())
         }).decode("utf-8")
         dead = set()

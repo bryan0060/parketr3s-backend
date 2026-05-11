@@ -26,7 +26,7 @@ def cluster_points(points, max_dist=100.0):
                 used[j] = True
         closest = min(group, key=lambda p: (p[0]**2 + p[1]**2)**0.5)
         clusters.append(closest)
-    return clusters[:MAX_TOUCHES]  # Máximo 4
+    return clusters[:MAX_TOUCHES]
 
 
 class Processor:
@@ -45,14 +45,15 @@ class Processor:
         self.matrix = np.load(str(CALIBRATION_FILE))
         print(f"[PROC] Matriz de homografía cargada")
 
-    def process(self, angle: float, distance: float) -> list:
+    def process(self, angle: float, distance: float, mode: str = "pizarra") -> list:
         x_mm, y_mm = polar_to_cartesian(angle, distance)
         self._buffer.append((x_mm, y_mm))
 
         if len(self._buffer) < self._buffer_size:
             return []
 
-        centroids = cluster_points(self._buffer, max_dist=150.0)
+        max_dist = 100.0 if mode == "pizarra" else 300.0
+        centroids = cluster_points(self._buffer, max_dist=max_dist)
         self._buffer.clear()
 
         results = []

@@ -8,7 +8,7 @@ SERIAL_PORT = "COM3"
 BAUDRATE = 460800
 
 # MOTOR
-MOTOR_PWM = 1200          # Más rápido (max 1023)
+MOTOR_RPM = 1200         
 
 # FILTROS
 MIN_DISTANCE_MM = 50

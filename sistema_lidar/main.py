@@ -10,19 +10,31 @@ from websocket_server import WebSocketServer
 handler = LidarHandler()
 
 MAX_TOUCHES = 4
-MATCH_DIST = 200  # px para considerar mismo toque
+MATCH_DIST = 200
+
+PROFILES = {
+    "pizarra": {
+        "buffer_size": 10,
+        "smooth_fast": 2,
+        "smooth_slow": 3,
+        "speed_threshold": 50,
+    },
+    "penaltis": {
+        "buffer_size": 1,
+        "smooth_fast": 1,
+        "smooth_slow": 1,
+        "speed_threshold": 0,
+    }
+}
+
+current_mode = "pizarra"
 
 
 def assign_ids(prev_touches: dict, new_points: list) -> dict:
-    """
-    Asigna IDs estables a los nuevos puntos basándose en proximidad
-    con los puntos anteriores.
-    """
     assigned = {}
     available_ids = list(range(MAX_TOUCHES))
     used_prev = set()
 
-    # Emparejar nuevos puntos con IDs anteriores por proximidad
     for x, y in new_points:
         best_id = None
         best_dist = MATCH_DIST
@@ -39,7 +51,6 @@ def assign_ids(prev_touches: dict, new_points: list) -> dict:
             assigned[best_id] = (x, y)
             used_prev.add(best_id)
         else:
-            # Nuevo toque — asignar ID libre
             for tid in available_ids:
                 if tid not in assigned and tid not in prev_touches:
                     assigned[tid] = (x, y)
@@ -49,22 +60,33 @@ def assign_ids(prev_touches: dict, new_points: list) -> dict:
 
 
 async def main():
+    global current_mode
+
     processor = Processor()
     server = WebSocketServer()
     loop = asyncio.get_running_loop()
+
+    def on_mode_change(mode: str):
+        global current_mode
+        current_mode = mode
+        processor._buffer_size = PROFILES[mode]["buffer_size"]
+        processor._buffer.clear()
+        print(f"[MAIN] Modo: {mode}")
+
+    server.on_mode_change = on_mode_change
 
     def lidar_thread():
         from collections import deque
         import time
 
-        # History por touch ID
         histories = {i: deque(maxlen=4) for i in range(MAX_TOUCHES)}
         prev_touches = {}
         last_point_time = time.monotonic()
         LIFT_THRESHOLD = 0.12
 
         for angle, distance in handler.read_loop():
-            points = processor.process(angle, distance)
+            profile = PROFILES[current_mode]
+            points = processor.process(angle, distance, current_mode)
             now = time.monotonic()
 
             if not points:
@@ -76,27 +98,27 @@ async def main():
 
             last_point_time = now
 
-            # Asignar IDs estables
             current_touches = assign_ids(prev_touches, points)
+
+            # Limpiar histories de IDs que desaparecieron
+            for tid in list(histories.keys()):
+                if tid not in current_touches:
+                    histories[tid].clear()
+
             prev_touches = current_touches
 
             touches_payload = []
             for tid, (x, y) in current_touches.items():
                 h = histories[tid]
 
-                if h:
-                    last = h[-1]
-                    speed = ((x - last[0])**2 + (y - last[1])**2)**0.5
-                else:
-                    speed = 0
-
-                # Limpiar history de IDs que no están activos
-                if tid not in current_touches:
-                    h.clear()
+                speed = ((x - h[-1][0])**2 + (y - h[-1][1])**2)**0.5 if h else 0
 
                 h.append((x, y))
 
-                n = min(2, len(h)) if speed > 50 else min(3, len(h))
+                n = (min(profile["smooth_fast"], len(h))
+                     if speed > profile["speed_threshold"]
+                     else min(profile["smooth_slow"], len(h)))
+
                 recent = list(h)[-n:]
                 avg_x = int(sum(p[0] for p in recent) / len(recent))
                 avg_y = int(sum(p[1] for p in recent) / len(recent))

@@ -92,6 +92,12 @@ class LidarHandler:
                         continue
                     if not (MIN_DISTANCE_MM <= scan.distance <= MAX_DISTANCE_MM):
                         continue
+                    if hasattr(scan, 'start_flag') and scan.start_flag:
+                        now = time.monotonic()
+                        if hasattr(self, '_last_start') and self._last_start:
+                            delta = now - self._last_start
+                            print(f"[LIDAR] RPM: {(1/delta)*60:.1f}")
+                        self._last_start = now
                     yield scan.angle, scan.distance
             except Exception as e:
                 print(f"[LIDAR] Error en lectura: {e}")

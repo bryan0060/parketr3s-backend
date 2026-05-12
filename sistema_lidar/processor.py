@@ -52,7 +52,7 @@ class Processor:
         if len(self._buffer) < self._buffer_size:
             return []
 
-        max_dist = 100.0 if mode == "pizarra" else 300.0
+        max_dist = 60.0 if mode == "pizarra" else 300.0
         centroids = cluster_points(self._buffer, max_dist=max_dist)
         self._buffer.clear()
 

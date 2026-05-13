@@ -1,8 +1,9 @@
-# core/processors/ritmo.py
+# sistema_camara/core/processors/ritmo.py
 # Noah Technology Solutions — Parke Tr3s
 # Descripción: Processor del juego Ritmo (Just Dance).
 #              Extrae muñecas y tobillos con su confidence score
 #              para que el Frontend valide poses contra la coreografía.
+#              Soporta modo "solo" (1 jugador) y "duo" (2 jugadores).
 
 class RitmoProcessor:
 
@@ -14,16 +15,12 @@ class RitmoProcessor:
         28: "tobillo_derecho"
     }
 
-    def procesar(self, landmarks_filtrados: list) -> dict:
+    def _extraer_puntos(self, landmarks_filtrados: list) -> dict:
         """
-        Recibe los 33 landmarks filtrados y devuelve solo
+        Recibe los 33 landmarks de un jugador y devuelve solo
         los 4 puntos que necesita el juego de Ritmo.
-
-        Cada punto incluye x, y y confidence — el Frontend
-        usa confidence para ignorar puntos poco confiables.
         """
         resultado = {}
-
         for indice, nombre in self.PUNTOS.items():
             punto = landmarks_filtrados[indice]
             resultado[nombre] = {
@@ -31,5 +28,36 @@ class RitmoProcessor:
                 "y":          punto["y"],
                 "confidence": punto["confidence"]
             }
-
         return resultado
+
+    def procesar(self, landmarks_todos: list, modo: str) -> dict:
+        """
+        Modo solo:
+            { "muneca_izquierda": {...}, ... }
+
+        Modo duo:
+            {
+                "jugador_1": { "detectado": true, "muneca_izquierda": {...}, ... },
+                "jugador_2": { "detectado": true/false, ... }
+            }
+        """
+        if modo == "duo":
+            resultado = {
+                "jugador_1": {
+                    "detectado": True,
+                    **self._extraer_puntos(landmarks_todos[0])
+                }
+            }
+
+            if len(landmarks_todos) >= 2:
+                resultado["jugador_2"] = {
+                    "detectado": True,
+                    **self._extraer_puntos(landmarks_todos[1])
+                }
+            else:
+                resultado["jugador_2"] = {"detectado": False}
+
+            return resultado
+
+        # ── Modo solo — estructura idéntica al contrato original ──
+        return self._extraer_puntos(landmarks_todos[0])

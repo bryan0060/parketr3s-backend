@@ -1,11 +1,11 @@
-# core/capture.py
+# sistema_camara/core/capture.py
 # Noah Technology Solutions — Parke Tr3s
 # Responsable: Bryan (temporalmente)
 # Descripción: Captura de cámara con OpenCV + MediaPipe Pose Landmarker.
 #              Usa la nueva API de MediaPipe Tasks (v0.10+)
-#              Lee frame por frame, detecta el cuerpo del jugador
-#              y devuelve los landmarks filtrados listos para
-#              los processors.
+#              Detecta hasta 2 jugadores simultáneamente.
+#              Los esqueletos se ordenan por posición X (izquierda→derecha)
+#              para que jugador_1 siempre sea el de la izquierda.
 
 import cv2
 import mediapipe as mp
@@ -34,6 +34,10 @@ from sistema_camara.utils.logger import (
 # Ruta al modelo descargado
 RUTA_MODELO = "pose_landmarker.task"
 
+# Máximo de jugadores soportados
+MAX_JUGADORES = 2
+
+
 class CapturaCamara:
     def __init__(self):
         # ── Inicializar MediaPipe Pose Landmarker ──
@@ -42,7 +46,7 @@ class CapturaCamara:
                 model_asset_path=RUTA_MODELO
             ),
             running_mode=mp_vision.RunningMode.VIDEO,
-            num_poses=1,
+            num_poses=MAX_JUGADORES,
             min_pose_detection_confidence=MP_CONFIANZA_DETECCION,
             min_pose_presence_confidence=MP_CONFIANZA_DETECCION,
             min_tracking_confidence=MP_CONFIANZA_TRACKING
@@ -50,13 +54,15 @@ class CapturaCamara:
         self._pose = mp_vision.PoseLandmarker.create_from_options(opciones)
         log_mediapipe_listo()
 
-        # ── Inicializar el filtro del esqueleto ──
-        self._filtro = FiltroEsqueleto()
+        # ── Un filtro independiente por cada jugador ──
+        # Cada FiltroEsqueleto mantiene su propio estado interno
+        # para que el suavizado sea consistente por jugador.
+        self._filtros = [FiltroEsqueleto() for _ in range(MAX_JUGADORES)]
 
         # ── Estado interno ──
-        self._camara          = None
-        self._jugador_visible = False
-        self._timestamp_ms    = 0  # MediaPipe Tasks requiere timestamp incremental
+        self._camara              = None
+        self._jugadores_visibles  = 0
+        self._timestamp_ms        = 0
 
     # ─────────────────────────────────────────
     # CONEXIÓN CON LA CÁMARA
@@ -96,7 +102,16 @@ class CapturaCamara:
     def leer_frame(self) -> dict | None:
         """
         Lee un frame de la cámara, lo procesa con MediaPipe
-        y devuelve los landmarks filtrados.
+        y devuelve los landmarks filtrados de todos los jugadores detectados.
+
+        Retorna:
+            {
+                "jugadores_detectados": int,    # 0, 1 o 2
+                "landmarks": [                  # lista de esqueletos
+                    [33 dicts],                  # jugador_1 (izquierda)
+                    [33 dicts]                   # jugador_2 (derecha)
+                ]
+            }
         """
         if not self._camara or not self._camara.isOpened():
             logger.error("❌ Se intentó leer un frame sin cámara conectada")
@@ -109,41 +124,50 @@ class CapturaCamara:
             return None
 
         # ── Convertir a formato MediaPipe ──
-        frame_rgb    = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        mp_image     = mp.Image(
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        mp_image  = mp.Image(
             image_format=mp.ImageFormat.SRGB,
             data=frame_rgb
         )
 
         # ── Incrementar timestamp ──
-        # MediaPipe Tasks requiere que el timestamp sea siempre creciente
         self._timestamp_ms += 1
 
         # ── Procesar con MediaPipe ──
         resultado = self._pose.detect_for_video(mp_image, self._timestamp_ms)
 
-        # ── Sin jugador detectado ──
-        if not resultado.pose_landmarks or len(resultado.pose_landmarks) == 0:
-            if self._jugador_visible:
-                log_jugador_perdido()
-                self._jugador_visible = False
+        # ── Contar jugadores detectados ──
+        cantidad = len(resultado.pose_landmarks) if resultado.pose_landmarks else 0
 
+        # ── Log solo cuando cambia la cantidad ──
+        if cantidad != self._jugadores_visibles:
+            if cantidad == 0:
+                log_jugador_perdido()
+            else:
+                logger.info(f"👤 Jugadores detectados: {cantidad}")
+            self._jugadores_visibles = cantidad
+
+        # ── Sin jugadores ──
+        if cantidad == 0:
             return {
-                "jugador_detectado": False,
-                "landmarks":         None
+                "jugadores_detectados": 0,
+                "landmarks":            []
             }
 
-        # ── Jugador detectado ──
-        if not self._jugador_visible:
-            log_jugador_detectado()
-            self._jugador_visible = True
-
-        # Aplicar filtro al esqueleto completo
-        landmarks_filtrados = self._filtro.aplicar(
-            resultado.pose_landmarks[0]
+        # ── Ordenar por posición X (izquierda → derecha) ──
+        # Esto garantiza que jugador_1 siempre sea el de la izquierda
+        # sin importar el orden en que MediaPipe los detecte.
+        poses_ordenadas = sorted(
+            resultado.pose_landmarks,
+            key=lambda lm: lm[0].x  # nariz.x como referencia
         )
 
+        # ── Filtrar cada esqueleto con su filtro independiente ──
+        landmarks_todos = []
+        for i, pose in enumerate(poses_ordenadas):
+            landmarks_todos.append(self._filtros[i].aplicar(pose))
+
         return {
-            "jugador_detectado": True,
-            "landmarks":         landmarks_filtrados
+            "jugadores_detectados": cantidad,
+            "landmarks":            landmarks_todos
         }

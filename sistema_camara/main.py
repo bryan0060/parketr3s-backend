@@ -1,8 +1,8 @@
 # sistema_camara/main.py
 # Noah Technology Solutions — Parke Tr3s
 # Descripción: Orquestador principal del sistema de cámara.
-#              Lee el juego activo desde el manager y llama
-#              al processor correspondiente en cada frame.
+#              Lee el juego activo y el modo desde el manager
+#              y llama al processor correspondiente en cada frame.
 
 import asyncio
 import time
@@ -34,9 +34,9 @@ camara = CapturaCamara()
 async def bucle_camara():
     """
     Bucle infinito que:
-    1. Lee un frame de la cámara
-    2. Revisa qué juego está activo
-    3. Llama al processor correspondiente
+    1. Lee un frame de la cámara (detecta hasta 2 jugadores)
+    2. Revisa qué juego y modo están activos
+    3. Llama al processor correspondiente pasándole el modo
     4. Emite el JSON por WebSocket
     """
     if not camara.conectar():
@@ -54,27 +54,32 @@ async def bucle_camara():
                 continue
 
             # ── Calcular FPS reales ──
-            tiempo_actual      = time.time()
-            diferencia_tiempo  = tiempo_actual - tiempo_anterior
-            fps_calculados     = 1.0 / diferencia_tiempo if diferencia_tiempo > 0 else 0.0
-            tiempo_anterior    = tiempo_actual
+            tiempo_actual     = time.time()
+            diferencia_tiempo = tiempo_actual - tiempo_anterior
+            fps_calculados    = 1.0 / diferencia_tiempo if diferencia_tiempo > 0 else 0.0
+            tiempo_anterior   = tiempo_actual
+
+            # ── Leer estado del manager ──
+            juego = manager.juego_activo
+            modo  = manager.modo
 
             # ── Armar mensaje base ──
             mensaje = {
-                "timestamp":        tiempo_actual,
-                "juego_activo":     manager.juego_activo,
-                "jugador_detectado": frame["jugador_detectado"],
-                "fps_actual":       round(fps_calculados, 1)
+                "timestamp":            tiempo_actual,
+                "juego_activo":         juego,
+                "modo":                 modo,
+                "jugadores_detectados": frame["jugadores_detectados"],
+                "fps_actual":           round(fps_calculados, 1)
             }
 
             # ── Llamar al processor del juego activo ──
-            juego = manager.juego_activo
-
-            if juego and frame["jugador_detectado"] and frame["landmarks"]:
+            if juego and frame["jugadores_detectados"] > 0 and frame["landmarks"]:
                 procesador = procesadores.get(juego)
 
                 if procesador:
-                    mensaje[juego] = procesadores[juego].procesar(frame["landmarks"])
+                    mensaje[juego] = procesador.procesar(
+                        frame["landmarks"], modo
+                    )
                 else:
                     logger.warning(f"⚠️ No hay processor para el juego: {juego}")
 

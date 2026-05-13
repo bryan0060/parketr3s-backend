@@ -2,6 +2,7 @@
 # Noah Technology Solutions — Parke Tr3s
 # Responsable: Jean / Bryan
 # Descripción: Extrae los puntos clave del esqueleto para "Duro contra el Muro".
+#              Soporta modo "solo" (1 jugador) y "duo" (2 jugadores cooperativos).
 
 class PosesProcessor:
     # Mapeo de índices de MediaPipe a los nombres del contrato API
@@ -21,15 +22,47 @@ class PosesProcessor:
         28: "tobillo_derecho"
     }
 
-    def procesar(self, landmarks_filtrados: list) -> dict:
+    def _extraer_esqueleto(self, landmarks_filtrados: list) -> dict:
         """
-        Toma la lista de 33 landmarks y devuelve solo los 
-        necesarios para el juego de Poses.
+        Toma los 33 landmarks de un jugador y devuelve solo
+        los 13 que necesita el juego de Poses.
         """
         esqueleto = {}
-        
         for indice, nombre in self.MAPEO_LANDMARKS.items():
-            # landmarks_filtrados ya viene como lista de dicts {x, y, z, confidence}
             esqueleto[nombre] = landmarks_filtrados[indice]
-            
-        return {"esqueleto": esqueleto}
+        return esqueleto
+
+    def procesar(self, landmarks_todos: list, modo: str) -> dict:
+        """
+        Modo solo:
+            { "esqueleto": { ... } }
+
+        Modo duo:
+            {
+                "jugador_1": { "detectado": true, "esqueleto": { ... } },
+                "jugador_2": { "detectado": true/false, "esqueleto": { ... } | null }
+            }
+        """
+        if modo == "duo":
+            resultado = {
+                "jugador_1": {
+                    "detectado": True,
+                    "esqueleto": self._extraer_esqueleto(landmarks_todos[0])
+                }
+            }
+
+            if len(landmarks_todos) >= 2:
+                resultado["jugador_2"] = {
+                    "detectado": True,
+                    "esqueleto": self._extraer_esqueleto(landmarks_todos[1])
+                }
+            else:
+                resultado["jugador_2"] = {
+                    "detectado": False,
+                    "esqueleto": None
+                }
+
+            return resultado
+
+        # ── Modo solo — estructura idéntica al contrato original ──
+        return {"esqueleto": self._extraer_esqueleto(landmarks_todos[0])}

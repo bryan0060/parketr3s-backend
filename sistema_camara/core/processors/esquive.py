@@ -15,7 +15,8 @@ class EsquiveProcessor:
     IDX_HOMBRO_IZQ = 11
     IDX_HOMBRO_DER = 12
 
-    def procesar(self, landmarks_filtrados: list) -> dict:
+    def procesar(self, landmarks_todos: list, modo: str) -> dict:
+        landmarks_filtrados = landmarks_todos[0]
         """
         Recibe los 33 landmarks filtrados y devuelve el carril
         activo y el ángulo del torso.

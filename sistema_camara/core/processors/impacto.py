@@ -30,7 +30,8 @@ class ImpactoProcessor:
             for nombre in self.PUNTOS.values()
         }
 
-    def procesar(self, landmarks_filtrados: list) -> dict:
+    def procesar(self, landmarks_todos: list, modo: str) -> dict:
+        landmarks_filtrados = landmarks_todos[0]
         """
         Recibe los 33 landmarks filtrados y devuelve velocidad,
         aceleración y si hubo golpe para manos y pies.

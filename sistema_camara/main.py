@@ -1,5 +1,6 @@
 # sistema_camara/main.py
 # Noah Technology Solutions — Parke Tr3s
+# Responsable: Bryan
 # Descripción: Orquestador principal del sistema de cámara.
 #              Lee el juego activo y el modo desde el manager
 #              y llama al processor correspondiente en cada frame.
@@ -43,7 +44,8 @@ async def bucle_camara():
         logger.error("❌ No se pudo iniciar el bucle de cámara.")
         return
 
-    tiempo_anterior = time.time()
+    tiempo_anterior    = time.time()
+    jugadores_anterior = 0
 
     try:
         while True:
@@ -63,17 +65,28 @@ async def bucle_camara():
             juego = manager.juego_activo
             modo  = manager.modo
 
+            # ── Detectar cuando alguien sale del frame ──
+            # Solo afecta a Esquive — los demás processors no necesitan reset
+            cantidad_actual = frame["jugadores_detectados"]
+
+            if jugadores_anterior > 0 and cantidad_actual == 0:
+                if juego == "esquive":
+                    procesadores["esquive"].reset()
+                    logger.info("🔄 Baseline de Esquive reiniciado — jugador salió del frame")
+
+            jugadores_anterior = cantidad_actual
+
             # ── Armar mensaje base ──
             mensaje = {
                 "timestamp":            tiempo_actual,
                 "juego_activo":         juego,
                 "modo":                 modo,
-                "jugadores_detectados": frame["jugadores_detectados"],
+                "jugadores_detectados": cantidad_actual,
                 "fps_actual":           round(fps_calculados, 1)
             }
 
             # ── Llamar al processor del juego activo ──
-            if juego and frame["jugadores_detectados"] > 0 and frame["landmarks"]:
+            if juego and cantidad_actual > 0 and frame["landmarks"]:
                 procesador = procesadores.get(juego)
 
                 if procesador:

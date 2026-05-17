@@ -69,10 +69,19 @@ WS_PUERTO_CAMARA = int(os.getenv("CAMARA_PUERTO_WS", 8080))
 # JUEGO — ESQUIVE
 # ─────────────────────────────────────────
 
-# Ángulo mínimo de inclinación del torso para considerar
-# que el jugador se movió a un carril. En grados.
-# Si el jugador se inclina menos de esto, sigue en CENTER.
-ESQUIVE_UMBRAL_ANGULO = 15.0
+# Límite izquierdo de la zona central del frame (0.0 a 1.0)
+# Si hip_x < este valor → LEFT
+ESQUIVE_ZONA_IZQUIERDA      = float(os.getenv("ESQUIVE_ZONA_IZQUIERDA",      0.38))
+
+# Límite derecho de la zona central del frame (0.0 a 1.0)
+# Si hip_x > este valor → RIGHT
+ESQUIVE_ZONA_DERECHA        = float(os.getenv("ESQUIVE_ZONA_DERECHA",        0.62))
+
+# Cuántos "alturas de torso" deben bajar las caderas para agacharse.
+ESQUIVE_UMBRAL_AGACHARSE    = float(os.getenv("ESQUIVE_UMBRAL_AGACHARSE",    0.25))
+
+# Frames consecutivos para confirmar un cambio de carril.
+ESQUIVE_FRAMES_CONFIRMACION = int(os.getenv("ESQUIVE_FRAMES_CONFIRMACION",   3))
 
 # ─────────────────────────────────────────
 # JUEGO — IMPACTO

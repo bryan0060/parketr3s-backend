@@ -18,6 +18,10 @@ __pycache__/
 logs/
 *.log
 
+
+# Script de extraccion de puntos de poses
+extract_poses.py
+
 # Calibración local
 calibration_data/
 *.npy

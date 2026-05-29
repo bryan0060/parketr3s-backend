@@ -21,7 +21,7 @@ CAMARA_INDEX = int(os.getenv("CAMARA_INDEX", 0))
 
 CAMARA_ANCHO = int(os.getenv("CAMARA_RESOLUCION_ANCHO", 1920))
 CAMARA_ALTO  = int(os.getenv("CAMARA_RESOLUCION_ALTO", 1080))
-CAMARA_FPS   = int(os.getenv("CAMARA_FPS_OBJETIVO", 60))
+CAMARA_FPS   = int(os.getenv("CAMARA_FPS_OBJETIVO", 30))
 
 # ─────────────────────────────────────────
 # MEDIAPIPE

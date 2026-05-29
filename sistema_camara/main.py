@@ -5,6 +5,8 @@
 #              Lee el juego activo y el modo desde el manager
 #              y llama al processor correspondiente en cada frame.
 
+import os
+os.environ["OPENCV_VIDEOIO_MSMF_ENABLE_HW_TRANSFORMS"] = "0"
 import asyncio
 import time
 import uvicorn
@@ -52,7 +54,7 @@ async def bucle_camara():
             frame = await asyncio.to_thread(camara.leer_frame)
 
             if not frame:
-                await asyncio.sleep(0.005)
+                await asyncio.sleep(0.016)
                 continue
 
             # ── Calcular FPS reales ──
@@ -95,6 +97,7 @@ async def bucle_camara():
                     )
                 else:
                     logger.warning(f"⚠️ No hay processor para el juego: {juego}")
+
 
             # ── Emitir por WebSocket ──
             if manager.active_connections:

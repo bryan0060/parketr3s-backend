@@ -70,6 +70,9 @@ WS_PUERTO_CAMARA = int(os.getenv("CAMARA_PUERTO_WS", 8080))
 # ─────────────────────────────────────────
 
 # Límite izquierdo de la zona central del frame (0.0 a 1.0)
+
+ESQUIVE_DESPLAZAMIENTO = float(os.getenv("ESQUIVE_DESPLAZAMIENTO", "0.08"))
+
 # Si hip_x < este valor → LEFT
 ESQUIVE_ZONA_IZQUIERDA      = float(os.getenv("ESQUIVE_ZONA_IZQUIERDA",      0.38))
 

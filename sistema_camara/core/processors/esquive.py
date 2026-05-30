@@ -5,7 +5,6 @@ from sistema_camara.config.settings import (
     ESQUIVE_FRAMES_CONFIRMACION,
 )
 
-
 class EsquiveProcessor:
 
     IDX_HOMBRO_IZQ = 11
@@ -85,7 +84,6 @@ class EsquiveProcessor:
 
         if self._frames_candidato >= ESQUIVE_FRAMES_CONFIRMACION:
             self._carril_anterior = self._carril_candidato
-
         return self._carril_anterior
 
     def _calcular_accion(

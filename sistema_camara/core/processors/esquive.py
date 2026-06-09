@@ -51,7 +51,7 @@ class EsquiveProcessor:
         accion = self._calcular_accion(dy, hombro_izq, hombro_der, muneca_izq, muneca_der)
 
         if accion == 'IDLE':
-            self._home_y = self._home_y * 0.95 + hip_y * 0.05
+            self._home_y = self._home_y * 0.98 + hip_y * 0.02
 
         if accion == 'CROUCH':
             carril = self._carril_anterior
@@ -86,21 +86,12 @@ class EsquiveProcessor:
             self._carril_anterior = self._carril_candidato
         return self._carril_anterior
 
-    def _calcular_accion(
-        self,
-        dy: float,
-        hombro_izq: dict,
-        hombro_der: dict,
-        muneca_izq: dict,
-        muneca_der: dict,
-    ) -> str:
-        muneca_izq_arriba = muneca_izq["y"] < hombro_izq["y"]
-        muneca_der_arriba = muneca_der["y"] < hombro_der["y"]
+    def _calcular_accion(self, dy, hombro_izq, hombro_der, muneca_izq, muneca_der):
+        muneca_izq_arriba = muneca_izq["y"] < hombro_izq["y"] + 0.04
+        muneca_der_arriba = muneca_der["y"] < hombro_der["y"] + 0.04
 
         if muneca_izq_arriba and muneca_der_arriba:
             return "JUMP"
-
         if dy > ESQUIVE_UMBRAL_AGACHARSE:
             return "CROUCH"
-
         return "IDLE"
